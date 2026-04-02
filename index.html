@@ -1,133 +1,26 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Software License Risk Checklist</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f5f5f3; color: #1a1a1a; padding: 2rem 1rem; }
-    .wrap { max-width: 680px; margin: 0 auto; }
-    h1 { font-size: 22px; font-weight: 500; margin-bottom: 4px; }
-    .subtitle { font-size: 14px; color: #666; margin-bottom: 1.5rem; }
-    .item { background: #fff; border: 1px solid #e5e5e3; border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 10px; display: flex; gap: 12px; align-items: flex-start; transition: opacity 0.2s; }
-    .item.checked { opacity: 0.5; }
-    .cb { margin-top: 3px; width: 16px; height: 16px; flex-shrink: 0; cursor: pointer; accent-color: #1D9E75; }
-    .item-body { flex: 1; }
-    .item-top { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; flex-wrap: wrap; }
-    .item-title { font-size: 15px; font-weight: 500; }
-    .badge { font-size: 11px; padding: 2px 9px; border-radius: 20px; font-weight: 500; }
-    .badge-red { background: #FCEBEB; color: #A32D2D; }
-    .badge-amber { background: #FAEEDA; color: #854F0B; }
-    .badge-green { background: #EAF3DE; color: #3B6D11; }
-    .item-desc { font-size: 13px; color: #555; line-height: 1.6; }
-    .score-card { background: #fff; border: 1px solid #e5e5e3; border-radius: 12px; padding: 1.25rem; margin-top: 1.5rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
-    .score-label { font-size: 12px; color: #888; margin-bottom: 2px; }
-    .score-number { font-size: 28px; font-weight: 500; }
-    .progress-wrap { flex: 1; min-width: 150px; }
-    .progress-bg { height: 6px; background: #e5e5e3; border-radius: 3px; overflow: hidden; }
-    .progress-fill { height: 100%; background: #1D9E75; border-radius: 3px; transition: width 0.3s ease; }
-    .status-text { font-size: 12px; color: #888; margin-top: 6px; }
-    .reset-btn { font-size: 13px; padding: 6px 14px; border-radius: 8px; border: 1px solid #ccc; background: transparent; color: #555; cursor: pointer; }
-    .reset-btn:hover { background: #f5f5f3; }
-  </style>
-</head>
-<body>
-  <div class="wrap">
-    <h1>Software license agreement — risk checklist</h1>
-    <p class="subtitle">Review each item and check off when assessed. High-risk items require closer attention before signing.</p>
+Build me a single self-contained HTML file called a "Contract Negotiation 
+Cheat Sheet" for in-house legal teams reviewing a SaaS / cloud service 
+agreement.
 
-    <div id="items"></div>
+Base the playbook on the Common Paper Cloud Service Agreement v2.1 standard 
+terms, which are publicly available at:
+https://commonpaper.com/standards/cloud-service-agreement/2.1/
 
-    <div class="score-card">
-      <div>
-        <div class="score-label">Items reviewed</div>
-        <div class="score-number" id="score-num">0 / 5</div>
-      </div>
-      <div class="progress-wrap">
-        <div class="progress-bg"><div class="progress-fill" id="progress" style="width:0%"></div></div>
-        <div class="status-text" id="status-text">Check each item as you review it</div>
-      </div>
-      <button class="reset-btn" onclick="reset()">Reset</button>
-    </div>
-  </div>
+The tool should work like this:
+- Step 1: User selects which side they are on (Customer or Provider)
+- Step 2: User selects a clause category from this list:
+    - Access & license scope
+    - Customer data & privacy
+    - Liability & indemnification
+    - Payment & auto-renewal
+    - IP ownership & output
+    - Termination & data return
+- Step 3: Tool displays:
+    - What the Common Paper default says
+    - What to push back on if you are the Customer
+    - What to protect if you are the Provider
+    - A suggested fallback clause they can copy-paste
 
-  <script>
-    const items = [
-      {
-        title: "Scope of license",
-        risk: "amber",
-        riskLabel: "Medium risk",
-        desc: "Is the license limited to specific named users, devices, or use cases? Overly narrow scope can block legitimate business use. Watch for restrictions on subsidiaries, contractors, or geographic regions."
-      },
-      {
-        title: "Data privacy and security",
-        risk: "red",
-        riskLabel: "High risk",
-        desc: "Does the vendor receive access to company data? Under what terms can they use, share, or retain it? Confirm compliance with GDPR, CCPA, or applicable frameworks. Request a DPA if not already included."
-      },
-      {
-        title: "Liability cap",
-        risk: "red",
-        riskLabel: "High risk",
-        desc: "Is your liability capped? Is the vendor's? Are there carve-outs for IP infringement, data breaches, or gross negligence? An uncapped vendor liability can be illusory if offset by broad indemnity obligations on your side."
-      },
-      {
-        title: "Auto-renewal and termination",
-        risk: "amber",
-        riskLabel: "Medium risk",
-        desc: "How much notice is required to cancel before auto-renewal? Can you exit cleanly without penalty? Check for data export rights and transition assistance obligations upon termination."
-      },
-      {
-        title: "IP ownership",
-        risk: "red",
-        riskLabel: "High risk",
-        desc: "Who owns modifications, integrations, or AI-generated output produced by or with the software? Vendor claims to derivative works or output data can create significant IP risk, especially for AI/ML tools."
-      }
-    ];
-
-    const checked = [false, false, false, false, false];
-
-    function render() {
-      document.getElementById("items").innerHTML = items.map((item, i) => `
-        <div class="item ${checked[i] ? 'checked' : ''}" id="item-${i}">
-          <input type="checkbox" class="cb" ${checked[i] ? 'checked' : ''} onchange="toggle(${i})" />
-          <div class="item-body">
-            <div class="item-top">
-              <span class="item-title">${item.title}</span>
-              <span class="badge badge-${item.risk}">${item.riskLabel}</span>
-            </div>
-            <div class="item-desc">${item.desc}</div>
-          </div>
-        </div>
-      `).join("");
-      updateScore();
-    }
-
-    function toggle(i) {
-      checked[i] = !checked[i];
-      document.getElementById("item-" + i).classList.toggle("checked", checked[i]);
-      updateScore();
-    }
-
-    function updateScore() {
-      const n = checked.filter(Boolean).length;
-      const total = items.length;
-      document.getElementById("score-num").textContent = n + " / " + total;
-      document.getElementById("progress").style.width = Math.round((n / total) * 100) + "%";
-      const highrisk = items.filter((item, i) => !checked[i] && item.risk === "red").length;
-      document.getElementById("status-text").textContent =
-        n === total ? "All items reviewed — ready to escalate or approve." :
-        highrisk > 0 ? highrisk + " high-risk item" + (highrisk > 1 ? "s" : "") + " still need review." :
-        "Keep going — check each item as you assess it.";
-    }
-
-    function reset() {
-      for (let i = 0; i < checked.length; i++) checked[i] = false;
-      render();
-    }
-
-    render();
-  </script>
-</body>
-</html>
+Make it clean, professional, and easy to read. Use green for 
+Customer-friendly tips and blue for Provider-friendly tips.
+Output only a single self-contained HTML file with no external dependencies.

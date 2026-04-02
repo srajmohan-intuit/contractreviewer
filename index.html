@@ -1,26 +1,257 @@
-Build me a single self-contained HTML file called a "Contract Negotiation 
-Cheat Sheet" for in-house legal teams reviewing a SaaS / cloud service 
-agreement.
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SaaS Contract Negotiation Cheat Sheet</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f5f5f3;color:#1a1a1a;min-height:100vh;padding:2rem 1rem}
+  .wrap{max-width:720px;margin:0 auto}
+  h1{font-size:22px;font-weight:500;margin-bottom:4px}
+  .tagline{font-size:14px;color:#666;margin-bottom:2rem}
+  .source{font-size:12px;color:#999;margin-bottom:2rem}
+  .source a{color:#999}
 
-Base the playbook on the Common Paper Cloud Service Agreement v2.1 standard 
-terms, which are publicly available at:
-https://commonpaper.com/standards/cloud-service-agreement/2.1/
+  /* Step cards */
+  .step{background:#fff;border:1px solid #e5e5e3;border-radius:12px;padding:1.25rem;margin-bottom:1rem}
+  .step-label{font-size:11px;font-weight:500;color:#999;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px}
 
-The tool should work like this:
-- Step 1: User selects which side they are on (Customer or Provider)
-- Step 2: User selects a clause category from this list:
-    - Access & license scope
-    - Customer data & privacy
-    - Liability & indemnification
-    - Payment & auto-renewal
-    - IP ownership & output
-    - Termination & data return
-- Step 3: Tool displays:
-    - What the Common Paper default says
-    - What to push back on if you are the Customer
-    - What to protect if you are the Provider
-    - A suggested fallback clause they can copy-paste
+  /* Side toggle */
+  .toggle{display:flex;gap:8px}
+  .toggle-btn{flex:1;padding:10px;border-radius:8px;border:1px solid #e5e5e3;background:#fff;font-size:14px;cursor:pointer;font-weight:500;transition:all 0.15s}
+  .toggle-btn:hover{border-color:#ccc}
+  .toggle-btn.active-customer{background:#EAF3DE;border-color:#639922;color:#3B6D11}
+  .toggle-btn.active-provider{background:#E6F1FB;border-color:#378ADD;color:#0C447C}
 
-Make it clean, professional, and easy to read. Use green for 
-Customer-friendly tips and blue for Provider-friendly tips.
-Output only a single self-contained HTML file with no external dependencies.
+  /* Clause pills */
+  .clauses{display:flex;flex-wrap:wrap;gap:8px}
+  .clause-btn{padding:7px 14px;border-radius:20px;border:1px solid #e5e5e3;background:#fff;font-size:13px;cursor:pointer;transition:all 0.15s;color:#444}
+  .clause-btn:hover{border-color:#bbb}
+  .clause-btn.active{background:#1a1a1a;border-color:#1a1a1a;color:#fff}
+
+  /* Result panel */
+  #result{display:none}
+  .default-box{background:#f9f9f7;border:1px solid #e5e5e3;border-radius:10px;padding:1rem;margin-bottom:1rem}
+  .default-box .label{font-size:11px;font-weight:500;color:#999;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px}
+  .default-box p{font-size:14px;color:#444;line-height:1.6}
+
+  .tip-box{border-radius:10px;padding:1rem;margin-bottom:1rem}
+  .tip-box .label{font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px}
+  .tip-box ul{padding-left:1.1rem}
+  .tip-box li{font-size:14px;line-height:1.7}
+
+  .customer-box{background:#EAF3DE;border:1px solid #C0DD97}
+  .customer-box .label{color:#3B6D11}
+  .customer-box li{color:#3B6D11}
+
+  .provider-box{background:#E6F1FB;border:1px solid #B5D4F4}
+  .provider-box .label{color:#0C447C}
+  .provider-box li{color:#185FA5}
+
+  .fallback-box{background:#fff;border:1px solid #e5e5e3;border-radius:10px;padding:1rem}
+  .fallback-box .label{font-size:11px;font-weight:500;color:#999;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px}
+  .fallback-text{font-size:13px;color:#333;line-height:1.7;font-family:Georgia,serif;background:#f9f9f7;border-radius:8px;padding:0.75rem;border-left:3px solid #ccc}
+  .copy-btn{margin-top:8px;font-size:12px;padding:5px 12px;border-radius:6px;border:1px solid #ccc;background:#fff;cursor:pointer;color:#555}
+  .copy-btn:hover{background:#f5f5f3}
+  .copy-btn.copied{border-color:#639922;color:#3B6D11}
+
+  .placeholder{text-align:center;padding:2rem;color:#aaa;font-size:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>SaaS contract negotiation cheat sheet</h1>
+  <p class="tagline">Select your side and a clause to see what to push for, protect, and propose.</p>
+  <p class="source">Playbook based on <a href="https://commonpaper.com/standards/cloud-service-agreement/2.1/" target="_blank">Common Paper CSA v2.1</a> — open source, CC BY 4.0</p>
+
+  <div class="step">
+    <div class="step-label">Step 1 — Which side are you on?</div>
+    <div class="toggle">
+      <button class="toggle-btn" id="btn-customer" onclick="setSide('customer')">Customer (buying)</button>
+      <button class="toggle-btn" id="btn-provider" onclick="setSide('provider')">Provider (selling)</button>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-label">Step 2 — Select a clause</div>
+    <div class="clauses" id="clauses"></div>
+  </div>
+
+  <div class="step" id="result">
+    <div class="step-label">Step 3 — Your negotiation guide</div>
+    <div id="result-inner"><div class="placeholder">Select a side and clause above</div></div>
+  </div>
+</div>
+
+<script>
+const data = {
+  "Access & license scope": {
+    default: "Customer may access and use the Cloud Service for internal business purposes only during the Subscription Period. Affiliates may use the service only under a separate Order Form.",
+    customer: [
+      "Push to include Affiliates and subsidiaries under one agreement without requiring separate Order Forms",
+      "Ensure the license covers contractors and consultants working on your behalf",
+      "Negotiate for the right to use output and reports externally, not just internally",
+      "Watch for seat/user caps — push for team or department-level licensing if possible"
+    ],
+    provider: [
+      "Keep 'internal business purposes only' — prevents resale or sublicensing",
+      "Require separate Order Forms for Affiliates to maintain control and billing",
+      "Define 'User' narrowly to protect against unlimited access creep",
+      "Include an audit right if Customer exceeds authorized usage"
+    ],
+    fallback: "Customer may access and use the Cloud Service for its internal business purposes during the Subscription Period, including use by Customer's employees, contractors, and Affiliates acting on Customer's behalf, subject to the user limits set forth in the applicable Order Form."
+  },
+  "Customer data & privacy": {
+    default: "Provider will use Customer Data only to provide the Cloud Service. Provider will implement reasonable security measures. Customer retains ownership of Customer Data.",
+    customer: [
+      "Require explicit prohibition on using your data to train AI models (CSA v2 added this — confirm it's in)",
+      "Specify encryption standards (AES-256 at rest, TLS 1.2+ in transit)",
+      "Require a Data Processing Agreement (DPA) if any personal data is involved",
+      "Push for breach notification within 48–72 hours, not just 'reasonable time'"
+    ],
+    provider: [
+      "Preserve right to use aggregated, anonymized usage data for product improvement",
+      "Limit data security obligations to 'industry standard' — avoid specific technical specs that become outdated",
+      "Cap breach notification obligations to what's legally required in applicable jurisdiction",
+      "Ensure Customer is responsible for the legality and accuracy of data they upload"
+    ],
+    fallback: "Provider will process Customer Data solely to provide the Cloud Service and will not use Customer Data to train machine learning models or share it with third parties except as required to deliver the Cloud Service. Provider will notify Customer of any confirmed data breach within 72 hours of discovery."
+  },
+  "Liability & indemnification": {
+    default: "Each party's liability is capped at fees paid in the prior 12 months. Consequential damages are excluded. Provider indemnifies Customer against third-party IP claims.",
+    customer: [
+      "Push to carve out data breaches and confidentiality breaches from the liability cap",
+      "Push to carve out gross negligence and willful misconduct from consequential damages waiver",
+      "Negotiate a higher cap multiplier — 12 months is often too low for enterprise deals (try 2x)",
+      "Ensure IP indemnification covers claims arising from your specific use of the service"
+    ],
+    provider: [
+      "Keep the 12-month fee cap as a hard ceiling — resist carve-outs if possible",
+      "Ensure mutual consequential damages waiver — it should apply to both parties equally",
+      "Limit IP indemnification to unmodified use of the service — exclude Customer-caused infringement",
+      "Add a cap on indemnification obligations separate from the general liability cap"
+    ],
+    fallback: "Each party's total aggregate liability will not exceed the greater of (a) fees paid or payable in the twelve months prior to the claim, or (b) $[X]. This cap will not apply to breaches of confidentiality, data security obligations, or claims arising from gross negligence or willful misconduct."
+  },
+  "Payment & auto-renewal": {
+    default: "Customer pays fees per the Order Form. Subscriptions auto-renew unless either party gives notice before the renewal date. Provider may increase fees on renewal with prior notice.",
+    customer: [
+      "Push for 90-day notice requirement before auto-renewal (not 30 days — easy to miss)",
+      "Cap annual fee increases at CPI or a fixed percentage (e.g. 5%) on auto-renewal",
+      "Negotiate a right to true-down unused licenses mid-term, not just true-up",
+      "Confirm what happens to your data if you fail to pay — push for a 30-day cure period"
+    ],
+    provider: [
+      "Keep auto-renewal default — it protects recurring revenue",
+      "Retain right to increase fees on renewal with 60-day notice",
+      "Include late payment interest clause (e.g. 1.5% per month)",
+      "Define what constitutes acceptance of an invoice to avoid payment disputes"
+    ],
+    fallback: "This Agreement will automatically renew for successive Subscription Periods unless either party provides written notice of non-renewal at least 90 days prior to the end of the then-current Subscription Period. Provider may increase fees for renewal terms by no more than 5% over the prior term's fees, with 60 days' prior written notice."
+  },
+  "IP ownership & output": {
+    default: "Customer owns Customer Data. Provider owns the Cloud Service and all improvements. Output generated using the service belongs to Customer.",
+    customer: [
+      "Explicitly confirm Customer owns all output, reports, and AI-generated content from the service",
+      "Ensure any customizations or configurations you build are owned by you, not the provider",
+      "Confirm Provider cannot use your data or output to improve their product without consent",
+      "Push for a license-back clause if Provider retains any rights to your configurations"
+    ],
+    provider: [
+      "Retain ownership of all improvements to the core product — even those inspired by Customer feedback",
+      "Define 'Output' narrowly — distinguish from underlying model improvements",
+      "Retain right to use anonymized, aggregated data for benchmarking and product development",
+      "Ensure Customer's use of Output is limited to their internal business — no redistribution"
+    ],
+    fallback: "As between the parties, Customer owns all Output generated through Customer's use of the Cloud Service. Provider retains all rights in and to the Cloud Service, including any improvements or modifications, provided that no such improvements will incorporate Customer's Confidential Information without Customer's prior written consent."
+  },
+  "Termination & data return": {
+    default: "Either party may terminate for material breach with 30-day cure period. On termination, Provider will make Customer Data available for export for 30 days, then delete it.",
+    customer: [
+      "Push for 60–90 days to export data after termination, not just 30",
+      "Require data to be returned in a portable, machine-readable format (CSV, JSON — not PDF)",
+      "Push for transition assistance obligations — at least a right to request reasonable help",
+      "Ensure termination for convenience right with reasonable notice (e.g. 30 days) without penalty"
+    ],
+    provider: [
+      "Limit post-termination data retention obligations to 30 days to reduce storage costs",
+      "Define 'machine-readable format' on your terms — don't accept open-ended format obligations",
+      "Resist termination for convenience clauses — or require full remaining contract value as termination fee",
+      "Clarify that deletion certification is provided within a reasonable time, not immediately on request"
+    ],
+    fallback: "Upon termination or expiration of this Agreement, Provider will make Customer Data available for export in CSV or JSON format for 60 days following the effective date of termination. After such period, Provider will delete Customer Data in accordance with its data retention policy and provide written certification of deletion upon request."
+  }
+};
+
+let side = null;
+let clause = null;
+
+const clauses = Object.keys(data);
+const clauseContainer = document.getElementById("clauses");
+clauses.forEach(c => {
+  const btn = document.createElement("button");
+  btn.className = "clause-btn";
+  btn.textContent = c;
+  btn.onclick = () => setClause(c);
+  clauseContainer.appendChild(btn);
+});
+
+function setSide(s) {
+  side = s;
+  document.getElementById("btn-customer").className = "toggle-btn" + (s === "customer" ? " active-customer" : "");
+  document.getElementById("btn-provider").className = "toggle-btn" + (s === "provider" ? " active-provider" : "");
+  render();
+}
+
+function setClause(c) {
+  clause = c;
+  document.querySelectorAll(".clause-btn").forEach(b => {
+    b.className = "clause-btn" + (b.textContent === c ? " active" : "");
+  });
+  render();
+}
+
+function render() {
+  const resultEl = document.getElementById("result");
+  const inner = document.getElementById("result-inner");
+  resultEl.style.display = "block";
+  if (!side || !clause) {
+    inner.innerHTML = '<div class="placeholder">Select both a side and a clause above</div>';
+    return;
+  }
+  const d = data[clause];
+  const isCust = side === "customer";
+  const tips = isCust ? d.customer : d.provider;
+  const tipClass = isCust ? "customer-box" : "provider-box";
+  const tipLabel = isCust ? "Push for this as Customer" : "Protect this as Provider";
+
+  inner.innerHTML = `
+    <div class="default-box">
+      <div class="label">Common Paper v2.1 default</div>
+      <p>${d.default}</p>
+    </div>
+    <div class="tip-box ${tipClass}">
+      <div class="label">${tipLabel}</div>
+      <ul>${tips.map(t => `<li>${t}</li>`).join("")}</ul>
+    </div>
+    <div class="fallback-box">
+      <div class="label">Suggested fallback clause</div>
+      <div class="fallback-text" id="fallback-text">${d.fallback}</div>
+      <button class="copy-btn" id="copy-btn" onclick="copyFallback()">Copy clause</button>
+    </div>
+  `;
+}
+
+function copyFallback() {
+  const text = document.getElementById("fallback-text").textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById("copy-btn");
+    btn.textContent = "Copied!";
+    btn.className = "copy-btn copied";
+    setTimeout(() => { btn.textContent = "Copy clause"; btn.className = "copy-btn"; }, 2000);
+  });
+}
+</script>
+</body>
+</html>

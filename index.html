@@ -57,6 +57,28 @@
   .copy-btn.copied{border-color:#639922;color:#3B6D11}
 
   .placeholder{text-align:center;padding:2rem;color:#aaa;font-size:14px}
+  .contract-area{width:100%;min-height:140px;font-size:13px;color:#333;border:1px solid #e5e5e3;border-radius:8px;padding:0.75rem;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;resize:vertical;line-height:1.6;background:#fafaf8}
+  .contract-area:focus{outline:none;border-color:#bbb}
+  .scan-btn{margin-top:10px;padding:8px 18px;border-radius:8px;border:1px solid #1a1a1a;background:#1a1a1a;color:#fff;font-size:13px;cursor:pointer;font-weight:500}
+  .scan-btn:hover{background:#333}
+  .scan-btn:disabled{background:#ccc;border-color:#ccc;cursor:not-allowed}
+  .flags{margin-top:1rem}
+  .flag-item{border-radius:10px;padding:0.9rem 1rem;margin-bottom:8px;border:1px solid}
+  .flag-red{background:#FCEBEB;border-color:#F7C1C1}
+  .flag-amber{background:#FAEEDA;border-color:#FAC775}
+  .flag-green{background:#EAF3DE;border-color:#C0DD97}
+  .flag-top{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+  .flag-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+  .dot-red{background:#A32D2D}
+  .dot-amber{background:#854F0B}
+  .dot-green{background:#3B6D11}
+  .flag-clause{font-size:13px;font-weight:500}
+  .flag-red .flag-clause{color:#A32D2D}
+  .flag-amber .flag-clause{color:#854F0B}
+  .flag-green .flag-clause{color:#3B6D11}
+  .flag-desc{font-size:13px;color:#444;line-height:1.6;margin-bottom:4px}
+  .flag-suggest{font-size:12px;font-style:italic;color:#666;line-height:1.6}
+  .disclaimer{font-size:12px;color:#999;margin-top:10px;line-height:1.6;border-top:1px solid #e5e5e3;padding-top:10px}
 </style>
 </head>
 <body>
@@ -76,6 +98,13 @@
   <div class="step">
     <div class="step-label">Step 2 — Select a clause</div>
     <div class="clauses" id="clauses"></div>
+  </div>
+
+  <div class="step">
+    <div class="step-label">Quick contract scan — paste any clause or contract text</div>
+    <textarea class="contract-area" id="contract-input" placeholder="Paste a clause or section of your contract here e.g. 'Provider's total liability shall not exceed $500...'"></textarea>
+    <button class="scan-btn" onclick="scanContract()">Scan for red flags</button>
+    <div class="flags" id="flags-output"></div>
   </div>
 
   <div class="step" id="result">
@@ -241,6 +270,42 @@ function render() {
       <button class="copy-btn" id="copy-btn" onclick="copyFallback()">Copy clause</button>
     </div>
   `;
+}
+
+const redFlags = [
+  { pattern: /perpetual/i, level: "red", clause: "Perpetual license grant", desc: "A perpetual license to your data or content means the vendor retains rights forever, even after you terminate.", suggest: "Replace with: 'License granted solely during the Subscription Period and solely to provide the Cloud Service.'" },
+  { pattern: /irrevocable/i, level: "red", clause: "Irrevocable rights", desc: "Irrevocable rights cannot be taken back. If granted over your data or IP, this survives termination.", suggest: "Push to remove 'irrevocable' or limit it explicitly to the term of the agreement." },
+  { pattern: /sole\s+discretion/i, level: "red", clause: "Sole discretion", desc: "Gives the vendor unilateral power to make decisions (e.g. suspend service, change terms) without recourse.", suggest: "Replace with: 'reasonable discretion' or require written notice and a cure period." },
+  { pattern: /unlimited\s+licen[sc]/i, level: "red", clause: "Unlimited license", desc: "An unlimited license to your data is extremely broad — the vendor could use it for almost any purpose.", suggest: "Replace with a strictly scoped license: 'solely to provide the Cloud Service to Customer.'" },
+  { pattern: /as.is/i, level: "amber", clause: "As-is disclaimer", desc: "Vendor disclaims all warranties. This is common but leaves you with little recourse if the service underperforms.", suggest: "Push for a limited warranty that the service will materially conform to documentation." },
+  { pattern: /auto.renew|automatically\s+renew/i, level: "amber", clause: "Auto-renewal", desc: "Contract renews automatically. Easy to miss if notice windows are short (often just 30 days).", suggest: "Push for 90-day notice window and a cap on fee increases at renewal (e.g. no more than 5%)." },
+  { pattern: /fees?\s+(are\s+)?non.refundable|no\s+refund/i, level: "amber", clause: "Non-refundable fees", desc: "You cannot recover fees even if you terminate early or the vendor breaches.", suggest: "Push for pro-rata refund rights on termination for cause or provider breach." },
+  { pattern: /waive[sr]?\s+(all\s+)?consequential|no\s+consequential/i, level: "amber", clause: "Consequential damages waiver", desc: "You cannot recover lost profits or indirect losses even if the vendor causes serious harm.", suggest: "Carve out data breaches, confidentiality breaches, and gross negligence from this waiver." },
+  { pattern: /train(ing)?\s+(ai|model|machine\s+learning)|use\s+(your\s+)?data\s+to\s+improv/i, level: "red", clause: "AI training on your data", desc: "Vendor may use your data to train AI models. This is a significant IP and confidentiality risk.", suggest: "Add: 'Provider will not use Customer Data to train machine learning or AI models without prior written consent.'" },
+  { pattern: /governi?ng\s+law.{0,30}(delaware|california|new\s+york)/i, level: "amber", clause: "Governing law & jurisdiction", desc: "Dispute resolution may require litigation in a distant state, increasing your legal costs.", suggest: "Push for your own jurisdiction or neutral arbitration (e.g. AAA arbitration in a mutually agreed location)." },
+  { pattern: /30\s+days?.{0,20}(data|export|return)/i, level: "amber", clause: "Short data return window", desc: "Only 30 days to export your data after termination — this can be very tight for large datasets.", suggest: "Push for 60–90 days and require export in machine-readable format (CSV, JSON)." },
+  { pattern: /indemnif.{0,40}customer|customer\s+shall\s+indemnif/i, level: "red", clause: "Broad customer indemnification", desc: "You are required to indemnify the vendor against a wide range of claims. Check scope carefully.", suggest: "Limit indemnification to claims arising from Customer's breach of the agreement or misuse of the service." },
+  { pattern: /modify.{0,30}terms|amend.{0,30}notice|change.{0,30}terms/i, level: "red", clause: "Unilateral right to modify terms", desc: "Vendor can change contract terms, sometimes with minimal notice. Your rights could be reduced mid-term.", suggest: "Push for: 'Material changes to these terms require mutual written agreement or 90 days advance notice.'" },
+];
+
+function scanContract() {
+  const text = document.getElementById("contract-input").value.trim();
+  const out = document.getElementById("flags-output");
+  if (!text) { out.innerHTML = ""; return; }
+  const found = redFlags.filter(f => f.pattern.test(text));
+  if (!found.length) {
+    out.innerHTML = `<div class="flag-item flag-green"><div class="flag-top"><div class="flag-dot dot-green"></div><span class="flag-clause" style="color:#3B6D11">No obvious red flags detected</span></div><div class="flag-desc" style="color:#3B6D11">This scan checks for common problematic patterns. It does not replace legal review — clauses can be risky in context even without flagged language.</div></div><div class="disclaimer">This is a keyword-based scan, not AI analysis. It flags known risk patterns but cannot interpret meaning, context, or how clauses interact. Always have a qualified attorney review contracts before signing.</div>`;
+    return;
+  }
+  const colors = { red: "flag-red", amber: "flag-amber" };
+  const dots = { red: "dot-red", amber: "dot-amber" };
+  out.innerHTML = found.map(f => `
+    <div class="flag-item ${colors[f.level]}">
+      <div class="flag-top"><div class="flag-dot ${dots[f.level]}"></div><span class="flag-clause">${f.clause}</span></div>
+      <div class="flag-desc">${f.desc}</div>
+      <div class="flag-suggest">${f.suggest}</div>
+    </div>
+  `).join("") + `<div class="disclaimer">This is a keyword-based scan, not AI analysis. It flags known risk patterns but cannot interpret meaning, context, or how clauses interact. Always have a qualified attorney review contracts before signing.</div>`;
 }
 
 function copyFallback() {

@@ -1,322 +1,451 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>SaaS Contract Negotiation Cheat Sheet</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NDA Red Flag Analyzer</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f5f5f3;color:#1a1a1a;min-height:100vh;padding:2rem 1rem}
-  .wrap{max-width:720px;margin:0 auto}
-  h1{font-size:22px;font-weight:500;margin-bottom:4px}
-  .tagline{font-size:14px;color:#666;margin-bottom:2rem}
-  .source{font-size:12px;color:#999;margin-bottom:2rem}
-  .source a{color:#999}
+  :root {
+    --bg: #0e0f11;
+    --surface: #16181c;
+    --surface2: #1e2026;
+    --border: #2a2d35;
+    --text: #e8e9ec;
+    --text-muted: #7a7f8e;
+    --text-dim: #4a4f5e;
+    --red: #ff4444;
+    --red-bg: rgba(255,68,68,0.12);
+    --red-border: rgba(255,68,68,0.40);
+    --orange: #ff8c42;
+    --orange-bg: rgba(255,140,66,0.12);
+    --orange-border: rgba(255,140,66,0.40);
+    --yellow: #f5c842;
+    --yellow-bg: rgba(245,200,66,0.10);
+    --yellow-border: rgba(245,200,66,0.35);
+    --green: #3ddc97;
+    --accent: #5b8fff;
+    --panel: 420px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'IBM Plex Sans', sans-serif; font-size: 14px; min-height: 100vh; }
 
-  /* Step cards */
-  .step{background:#fff;border:1px solid #e5e5e3;border-radius:12px;padding:1.25rem;margin-bottom:1rem}
-  .step-label{font-size:11px;font-weight:500;color:#999;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px}
+  header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    background: rgba(14,15,17,0.96); backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 28px; height: 56px;
+    display: flex; align-items: center; gap: 16px;
+  }
+  .logo { font-family: 'Playfair Display', serif; font-size: 17px; font-weight: 700; }
+  .logo span { color: var(--red); }
+  .spacer { flex: 1; }
+  #stats-bar { display: none; gap: 12px; align-items: center; }
+  .pill { display: flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 500; font-family: 'IBM Plex Mono', monospace; border: 1px solid transparent; }
+  .pill.r { background: var(--red-bg);    border-color: var(--red-border);    color: var(--red); }
+  .pill.o { background: var(--orange-bg); border-color: var(--orange-border); color: var(--orange); }
+  .pill.y { background: var(--yellow-bg); border-color: var(--yellow-border); color: var(--yellow); }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 
-  /* Side toggle */
-  .toggle{display:flex;gap:8px}
-  .toggle-btn{flex:1;padding:10px;border-radius:8px;border:1px solid #e5e5e3;background:#fff;font-size:14px;cursor:pointer;font-weight:500;transition:all 0.15s}
-  .toggle-btn:hover{border-color:#ccc}
-  .toggle-btn.active-customer{background:#EAF3DE;border-color:#639922;color:#3B6D11}
-  .toggle-btn.active-provider{background:#E6F1FB;border-color:#378ADD;color:#0C447C}
+  .app { display: flex; margin-top: 56px; min-height: calc(100vh - 56px); }
+  #main { flex: 1; transition: margin-right 0.3s ease; min-width: 0; }
+  #main.shifted { margin-right: var(--panel); }
 
-  /* Clause pills */
-  .clauses{display:flex;flex-wrap:wrap;gap:8px}
-  .clause-btn{padding:7px 14px;border-radius:20px;border:1px solid #e5e5e3;background:#fff;font-size:13px;cursor:pointer;transition:all 0.15s;color:#444}
-  .clause-btn:hover{border-color:#bbb}
-  .clause-btn.active{background:#1a1a1a;border-color:#1a1a1a;color:#fff}
+  #upload-view {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; min-height: calc(100vh - 56px);
+    padding: 48px 40px; gap: 24px;
+  }
+  .up-title { font-family: 'Playfair Display', serif; font-size: 32px; font-weight: 600; text-align: center; line-height: 1.2; }
+  .up-title em { font-style: italic; color: var(--text-muted); }
+  .up-sub { color: var(--text-muted); font-size: 14px; text-align: center; max-width: 440px; line-height: 1.6; }
+  #nda-input {
+    width: 100%; max-width: 740px; height: 280px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    color: var(--text); font-family: 'IBM Plex Mono', monospace; font-size: 13px;
+    line-height: 1.7; padding: 20px 24px; resize: vertical; outline: none;
+    transition: border-color 0.2s;
+  }
+  #nda-input::placeholder { color: var(--text-dim); }
+  #nda-input:focus { border-color: var(--accent); }
+  #analyze-btn {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--accent); color: #fff; border: none; border-radius: 8px;
+    padding: 14px 32px; font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 14px; font-weight: 600; cursor: pointer; transition: opacity 0.2s;
+  }
+  #analyze-btn:hover { opacity: 0.85; }
 
-  /* Result panel */
-  #result{display:none}
-  .default-box{background:#f9f9f7;border:1px solid #e5e5e3;border-radius:10px;padding:1rem;margin-bottom:1rem}
-  .default-box .label{font-size:11px;font-weight:500;color:#999;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px}
-  .default-box p{font-size:14px;color:#444;line-height:1.6}
+  #results-view { display: none; }
+  .res-header { padding: 24px 40px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 16px; }
+  .res-title { font-family: 'Playfair Display', serif; font-size: 18px; font-weight: 600; }
+  .res-sub { color: var(--text-muted); font-size: 12px; margin-top: 2px; }
+  #reset-btn {
+    margin-left: auto; background: transparent; border: 1px solid var(--border);
+    color: var(--text-muted); border-radius: 6px; padding: 7px 14px;
+    font-size: 12px; font-family: 'IBM Plex Sans', sans-serif; cursor: pointer;
+    transition: color 0.2s, border-color 0.2s;
+  }
+  #reset-btn:hover { color: var(--text); border-color: var(--text-muted); }
+  .nda-body { padding: 32px 40px 80px; max-width: 860px; }
+  #nda-rendered { font-family: 'IBM Plex Mono', monospace; font-size: 13px; line-height: 1.85; color: #c8cad0; white-space: pre-wrap; word-break: break-word; }
 
-  .tip-box{border-radius:10px;padding:1rem;margin-bottom:1rem}
-  .tip-box .label{font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px}
-  .tip-box ul{padding-left:1.1rem}
-  .tip-box li{font-size:14px;line-height:1.7}
+  .flag { border-radius: 3px; padding: 1px 3px; cursor: pointer; border-bottom: 2px solid transparent; transition: filter 0.12s; }
+  .flag:hover { filter: brightness(1.3); }
+  .flag.active { outline: 2px solid; outline-offset: 2px; }
+  .flag.red    { background: var(--red-bg);    border-color: var(--red);    color: #ffb3b3; }
+  .flag.orange { background: var(--orange-bg); border-color: var(--orange); color: #ffd1a8; }
+  .flag.yellow { background: var(--yellow-bg); border-color: var(--yellow); color: #f5e5a0; }
+  .fbadge { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; border-radius: 3px; font-size: 9px; font-weight: 700; font-family: 'IBM Plex Mono', monospace; vertical-align: middle; margin-left: 3px; position: relative; top: -1px; }
+  .flag.red    .fbadge { background: var(--red);    color: #000; }
+  .flag.orange .fbadge { background: var(--orange); color: #000; }
+  .flag.yellow .fbadge { background: var(--yellow); color: #000; }
 
-  .customer-box{background:#EAF3DE;border:1px solid #C0DD97}
-  .customer-box .label{color:#3B6D11}
-  .customer-box li{color:#3B6D11}
+  #panel {
+    position: fixed; top: 56px; right: 0; bottom: 0; width: var(--panel);
+    background: var(--surface); border-left: 1px solid var(--border);
+    transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+    overflow-y: auto; z-index: 90; display: flex; flex-direction: column;
+  }
+  #panel.open { transform: translateX(0); }
+  .ph { padding: 18px 18px 14px; border-bottom: 1px solid var(--border); flex-shrink: 0; position: relative; }
+  .ph-title { font-family: 'Playfair Display', serif; font-size: 15px; font-weight: 600; padding-right: 28px; margin-bottom: 3px; }
+  .ph-sub { font-size: 11px; color: var(--text-muted); }
+  #panel-close { position: absolute; top: 14px; right: 14px; background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 16px; line-height: 1; padding: 4px; border-radius: 4px; transition: color 0.15s; }
+  #panel-close:hover { color: var(--text); }
+  .fbar { display: flex; gap: 5px; padding: 10px 14px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  .fb { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 500; border: 1px solid transparent; cursor: pointer; background: transparent; color: var(--text-muted); transition: all 0.12s; font-family: 'IBM Plex Sans', sans-serif; }
+  .fb:hover { color: var(--text); }
+  .fb.on      { background: var(--surface2); border-color: var(--border); color: var(--text); }
+  .fb.on.fr   { background: var(--red-bg);    border-color: var(--red-border);    color: var(--red); }
+  .fb.on.fo   { background: var(--orange-bg); border-color: var(--orange-border); color: var(--orange); }
+  .fb.on.fy   { background: var(--yellow-bg); border-color: var(--yellow-border); color: var(--yellow); }
+  #plist { padding: 8px 0 60px; }
 
-  .provider-box{background:#E6F1FB;border:1px solid #B5D4F4}
-  .provider-box .label{color:#0C447C}
-  .provider-box li{color:#185FA5}
+  .pfi { padding: 14px 16px; border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.12s; position: relative; }
+  .pfi:hover { background: var(--surface2); }
+  .pfi.active { background: var(--surface2); }
+  .pfi.active::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
+  .pfi.active.red::before    { background: var(--red); }
+  .pfi.active.orange::before { background: var(--orange); }
+  .pfi.active.yellow::before { background: var(--yellow); }
+  .pfi-top { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 7px; }
+  .sdot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
+  .pfi.red    .sdot { background: var(--red); }
+  .pfi.orange .sdot { background: var(--orange); }
+  .pfi.yellow .sdot { background: var(--yellow); }
+  .pfi-title { font-size: 13px; font-weight: 600; line-height: 1.35; flex: 1; }
+  .pfi-sec { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--text-muted); background: var(--bg); border-radius: 4px; padding: 2px 6px; white-space: nowrap; flex-shrink: 0; }
+  .pfi-prob { font-size: 12px; color: var(--text-muted); line-height: 1.6; margin-bottom: 10px; }
+  .baseline { background: rgba(61,220,151,0.07); border: 1px solid rgba(61,220,151,0.25); border-radius: 8px; padding: 10px 12px; }
+  .bl-lbl { font-size: 10px; font-weight: 600; letter-spacing: 0.8px; color: var(--green); text-transform: uppercase; margin-bottom: 5px; }
+  .bl-txt { font-size: 11.5px; line-height: 1.65; color: #b8f0d8; font-family: 'IBM Plex Mono', monospace; }
+  .empty { padding: 32px 16px; text-align: center; color: var(--text-muted); font-size: 13px; }
 
-  .fallback-box{background:#fff;border:1px solid #e5e5e3;border-radius:10px;padding:1rem}
-  .fallback-box .label{font-size:11px;font-weight:500;color:#999;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px}
-  .fallback-text{font-size:13px;color:#333;line-height:1.7;font-family:Georgia,serif;background:#f9f9f7;border-radius:8px;padding:0.75rem;border-left:3px solid #ccc}
-  .copy-btn{margin-top:8px;font-size:12px;padding:5px 12px;border-radius:6px;border:1px solid #ccc;background:#fff;cursor:pointer;color:#555}
-  .copy-btn:hover{background:#f5f5f3}
-  .copy-btn.copied{border-color:#639922;color:#3B6D11}
-
-  .placeholder{text-align:center;padding:2rem;color:#aaa;font-size:14px}
-  .contract-area{width:100%;min-height:140px;font-size:13px;color:#333;border:1px solid #e5e5e3;border-radius:8px;padding:0.75rem;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;resize:vertical;line-height:1.6;background:#fafaf8}
-  .contract-area:focus{outline:none;border-color:#bbb}
-  .scan-btn{margin-top:10px;padding:8px 18px;border-radius:8px;border:1px solid #1a1a1a;background:#1a1a1a;color:#fff;font-size:13px;cursor:pointer;font-weight:500}
-  .scan-btn:hover{background:#333}
-  .scan-btn:disabled{background:#ccc;border-color:#ccc;cursor:not-allowed}
-  .flags{margin-top:1rem}
-  .flag-item{border-radius:10px;padding:0.9rem 1rem;margin-bottom:8px;border:1px solid}
-  .flag-red{background:#FCEBEB;border-color:#F7C1C1}
-  .flag-amber{background:#FAEEDA;border-color:#FAC775}
-  .flag-green{background:#EAF3DE;border-color:#C0DD97}
-  .flag-top{display:flex;align-items:center;gap:8px;margin-bottom:4px}
-  .flag-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
-  .dot-red{background:#A32D2D}
-  .dot-amber{background:#854F0B}
-  .dot-green{background:#3B6D11}
-  .flag-clause{font-size:13px;font-weight:500}
-  .flag-red .flag-clause{color:#A32D2D}
-  .flag-amber .flag-clause{color:#854F0B}
-  .flag-green .flag-clause{color:#3B6D11}
-  .flag-desc{font-size:13px;color:#444;line-height:1.6;margin-bottom:4px}
-  .flag-suggest{font-size:12px;font-style:italic;color:#666;line-height:1.6}
-  .disclaimer{font-size:12px;color:#999;margin-top:10px;line-height:1.6;border-top:1px solid #e5e5e3;padding-top:10px}
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <h1>SaaS contract negotiation cheat sheet</h1>
-  <p class="tagline">Select your side and a clause to see what to push for, protect, and propose.</p>
-  <p class="source">Playbook based on <a href="https://commonpaper.com/standards/cloud-service-agreement/2.1/" target="_blank">Common Paper CSA v2.1</a> — open source, CC BY 4.0</p>
 
-  <div class="step">
-    <div class="step-label">Step 1 — Which side are you on?</div>
-    <div class="toggle">
-      <button class="toggle-btn" id="btn-customer" onclick="setSide('customer')">Customer (buying)</button>
-      <button class="toggle-btn" id="btn-provider" onclick="setSide('provider')">Provider (selling)</button>
+<header>
+  <div class="logo">NDA<span>&#9873;</span>Scope</div>
+  <div class="spacer"></div>
+  <div id="stats-bar">
+    <div class="pill r"><span class="dot"></span><span id="cnt-r">0</span>&nbsp;High</div>
+    <div class="pill o"><span class="dot"></span><span id="cnt-o">0</span>&nbsp;Medium</div>
+    <div class="pill y"><span class="dot"></span><span id="cnt-y">0</span>&nbsp;Watch</div>
+  </div>
+</header>
+
+<div class="app">
+  <div id="main">
+    <div id="upload-view">
+      <div class="up-title">Analyze your NDA<br><em>for scope red flags</em></div>
+      <div class="up-sub">Paste any NDA below. Risky clauses are highlighted inline and matched against your baseline language.</div>
+      <textarea id="nda-input" placeholder="Paste NDA text here..."></textarea>
+      <button id="analyze-btn">&#128269; Analyze Red Flags</button>
+    </div>
+    <div id="results-view">
+      <div class="res-header">
+        <div>
+          <div class="res-title">Red Flag Analysis</div>
+          <div class="res-sub" id="res-sub">Disclosing Party &middot; Scope of Protection</div>
+        </div>
+        <button id="reset-btn">&larr; New Analysis</button>
+      </div>
+      <div class="nda-body">
+        <div id="nda-rendered"></div>
+      </div>
     </div>
   </div>
 
-  <div class="step">
-    <div class="step-label">Step 2 — Select a clause</div>
-    <div class="clauses" id="clauses"></div>
-  </div>
-
-  <div class="step">
-    <div class="step-label">Quick contract scan — paste any clause or contract text</div>
-    <textarea class="contract-area" id="contract-input" placeholder="Paste a clause or section of your contract here e.g. 'Provider's total liability shall not exceed $500...'"></textarea>
-    <button class="scan-btn" onclick="scanContract()">Scan for red flags</button>
-    <div class="flags" id="flags-output"></div>
-  </div>
-
-  <div class="step" id="result">
-    <div class="step-label">Step 3 — Your negotiation guide</div>
-    <div id="result-inner"><div class="placeholder">Select a side and clause above</div></div>
+  <div id="panel">
+    <div class="ph">
+      <div class="ph-title">Issues Found</div>
+      <div class="ph-sub">Click any highlight to jump to details</div>
+      <button id="panel-close">&#x2715;</button>
+    </div>
+    <div class="fbar">
+      <button class="fb on"    data-f="all">All</button>
+      <button class="fb fr"    data-f="red">&#128308; High</button>
+      <button class="fb fo"    data-f="orange">&#128992; Medium</button>
+      <button class="fb fy"    data-f="yellow">&#128993; Watch</button>
+    </div>
+    <div id="plist"></div>
   </div>
 </div>
 
 <script>
-const data = {
-  "Access & license scope": {
-    default: "Customer may access and use the Cloud Service for internal business purposes only during the Subscription Period. Affiliates may use the service only under a separate Order Form.",
-    customer: [
-      "Push to include Affiliates and subsidiaries under one agreement without requiring separate Order Forms",
-      "Ensure the license covers contractors and consultants working on your behalf",
-      "Negotiate for the right to use output and reports externally, not just internally",
-      "Watch for seat/user caps — push for team or department-level licensing if possible"
-    ],
-    provider: [
-      "Keep 'internal business purposes only' — prevents resale or sublicensing",
-      "Require separate Order Forms for Affiliates to maintain control and billing",
-      "Define 'User' narrowly to protect against unlimited access creep",
-      "Include an audit right if Customer exceeds authorized usage"
-    ],
-    fallback: "Customer may access and use the Cloud Service for its internal business purposes during the Subscription Period, including use by Customer's employees, contractors, and Affiliates acting on Customer's behalf, subject to the user limits set forth in the applicable Order Form."
+var FLAGS = [
+  {
+    id: 'residuals', severity: 'red', title: 'Residuals Clause \u2014 Memory Loophole', section: '\u00a76',
+    patterns: ['residuals', 'unaided memory'],
+    problem: 'Allows the Receiving Party to use anything retained in employees\u2019 unaided memory for ANY purpose \u2014 including building competing products. This effectively nullifies your IP protection for anything discussed verbally or reviewed in meetings.',
+    baseline: 'Receiving Party agrees that the right to use residuals shall not apply to any information that constitutes a trade secret of Disclosing Party, or to any specific technical data or know-how that Receiving Party\u2019s personnel intentionally memorized for the purpose of replicating or competing with the Disclosing Party\u2019s products or services.'
   },
-  "Customer data & privacy": {
-    default: "Provider will use Customer Data only to provide the Cloud Service. Provider will implement reasonable security measures. Customer retains ownership of Customer Data.",
-    customer: [
-      "Require explicit prohibition on using your data to train AI models (CSA v2 added this — confirm it's in)",
-      "Specify encryption standards (AES-256 at rest, TLS 1.2+ in transit)",
-      "Require a Data Processing Agreement (DPA) if any personal data is involved",
-      "Push for breach notification within 48–72 hours, not just 'reasonable time'"
-    ],
-    provider: [
-      "Preserve right to use aggregated, anonymized usage data for product improvement",
-      "Limit data security obligations to 'industry standard' — avoid specific technical specs that become outdated",
-      "Cap breach notification obligations to what's legally required in applicable jurisdiction",
-      "Ensure Customer is responsible for the legality and accuracy of data they upload"
-    ],
-    fallback: "Provider will process Customer Data solely to provide the Cloud Service and will not use Customer Data to train machine learning models or share it with third parties except as required to deliver the Cloud Service. Provider will notify Customer of any confirmed data breach within 72 hours of discovery."
+  {
+    id: 'no-nonuse', severity: 'red', title: 'No Non-Use Obligation Beyond Evaluation', section: '\u00a73c / \u00a76',
+    patterns: ['shall not use Confidential Information for any purpose other than in connection with the Evaluation', 'nothing in this Agreement shall prohibit.*develop.*make.*use.*market.*license.*distribute'],
+    problem: 'Use of CI is only restricted \u201cin connection with the Evaluation,\u201d but \u00a76 simultaneously permits competitive product development. There is no explicit prohibition on exploiting your information internally.',
+    baseline: 'Receiving Party agrees not to use any Confidential Information of Disclosing Party for any purpose other than the Evaluation. Receiving Party shall not use Confidential Information to develop, directly or indirectly, products or services that compete with those of Disclosing Party.'
   },
-  "Liability & indemnification": {
-    default: "Each party's liability is capped at fees paid in the prior 12 months. Consequential damages are excluded. Provider indemnifies Customer against third-party IP claims.",
-    customer: [
-      "Push to carve out data breaches and confidentiality breaches from the liability cap",
-      "Push to carve out gross negligence and willful misconduct from consequential damages waiver",
-      "Negotiate a higher cap multiplier — 12 months is often too low for enterprise deals (try 2x)",
-      "Ensure IP indemnification covers claims arising from your specific use of the service"
-    ],
-    provider: [
-      "Keep the 12-month fee cap as a hard ceiling — resist carve-outs if possible",
-      "Ensure mutual consequential damages waiver — it should apply to both parties equally",
-      "Limit IP indemnification to unmodified use of the service — exclude Customer-caused infringement",
-      "Add a cap on indemnification obligations separate from the general liability cap"
-    ],
-    fallback: "Each party's total aggregate liability will not exceed the greater of (a) fees paid or payable in the twelve months prior to the claim, or (b) $[X]. This cap will not apply to breaches of confidentiality, data security obligations, or claims arising from gross negligence or willful misconduct."
+  {
+    id: 'archive', severity: 'red', title: 'Archive / Backup Carve-Out from Return & Destroy', section: '\u00a79(ii)',
+    patterns: ['archive or back-up systems', 'identify or delete Confidential Information held electronically in archive'],
+    problem: 'The return/destroy obligation explicitly excludes CI held in electronic archives and backup systems. Your data can persist in their infrastructure indefinitely under cover of \u201croutine backup policy.\u201d',
+    baseline: 'Notwithstanding the archive exception, Receiving Party shall ensure archived Confidential Information remains subject to the same confidentiality obligations, access is limited to personnel with a legal retention need, and Receiving Party shall promptly destroy such copies when retention is no longer legally required.'
   },
-  "Payment & auto-renewal": {
-    default: "Customer pays fees per the Order Form. Subscriptions auto-renew unless either party gives notice before the renewal date. Provider may increase fees on renewal with prior notice.",
-    customer: [
-      "Push for 90-day notice requirement before auto-renewal (not 30 days — easy to miss)",
-      "Cap annual fee increases at CPI or a fixed percentage (e.g. 5%) on auto-renewal",
-      "Negotiate a right to true-down unused licenses mid-term, not just true-up",
-      "Confirm what happens to your data if you fail to pay — push for a 30-day cure period"
-    ],
-    provider: [
-      "Keep auto-renewal default — it protects recurring revenue",
-      "Retain right to increase fees on renewal with 60-day notice",
-      "Include late payment interest clause (e.g. 1.5% per month)",
-      "Define what constitutes acceptance of an invoice to avoid payment disputes"
-    ],
-    fallback: "This Agreement will automatically renew for successive Subscription Periods unless either party provides written notice of non-renewal at least 90 days prior to the end of the then-current Subscription Period. Provider may increase fees for renewal terms by no more than 5% over the prior term's fees, with 60 days' prior written notice."
+  {
+    id: 'reasonable-steps', severity: 'orange', title: 'Protection Standard Tied to Receiving Party\u2019s Own Practices', section: '\u00a73',
+    patterns: ['those steps the Receiving Party takes to protect its own similar proprietary'],
+    problem: 'The NDA only requires the Receiving Party to protect your CI to the same level it protects its own information. If their internal security practices are weak, yours receive the same inadequate protection.',
+    baseline: 'Receiving Party shall protect Disclosing Party\u2019s Confidential Information using no less than industry-standard security measures, and in any event no less than the same degree of care it uses to protect its own most sensitive confidential information.'
   },
-  "IP ownership & output": {
-    default: "Customer owns Customer Data. Provider owns the Cloud Service and all improvements. Output generated using the service belongs to Customer.",
-    customer: [
-      "Explicitly confirm Customer owns all output, reports, and AI-generated content from the service",
-      "Ensure any customizations or configurations you build are owned by you, not the provider",
-      "Confirm Provider cannot use your data or output to improve their product without consent",
-      "Push for a license-back clause if Provider retains any rights to your configurations"
-    ],
-    provider: [
-      "Retain ownership of all improvements to the core product — even those inspired by Customer feedback",
-      "Define 'Output' narrowly — distinguish from underlying model improvements",
-      "Retain right to use anonymized, aggregated data for benchmarking and product development",
-      "Ensure Customer's use of Output is limited to their internal business — no redistribution"
-    ],
-    fallback: "As between the parties, Customer owns all Output generated through Customer's use of the Cloud Service. Provider retains all rights in and to the Cloud Service, including any improvements or modifications, provided that no such improvements will incorporate Customer's Confidential Information without Customer's prior written consent."
+  {
+    id: 'oral-disclosure', severity: 'orange', title: 'Oral Disclosures Require In-Moment Identification', section: '\u00a72',
+    patterns: ['identify it as confidential or proprietary at the time of disclosure', 'Disclosing Party agrees to identify it as confidential'],
+    problem: 'Oral disclosures are only protected if flagged as confidential at the time of disclosure. If your team forgets to identify something in a meeting, that information may fall outside the agreement\u2019s protection.',
+    baseline: 'For oral or visual disclosures, Disclosing Party shall use reasonable efforts to identify such information as confidential at time of disclosure; provided that failure to do so shall not affect the confidential nature of information that a reasonable person would understand to be confidential given the context.'
   },
-  "Termination & data return": {
-    default: "Either party may terminate for material breach with 30-day cure period. On termination, Provider will make Customer Data available for export for 30 days, then delete it.",
-    customer: [
-      "Push for 60–90 days to export data after termination, not just 30",
-      "Require data to be returned in a portable, machine-readable format (CSV, JSON — not PDF)",
-      "Push for transition assistance obligations — at least a right to request reasonable help",
-      "Ensure termination for convenience right with reasonable notice (e.g. 30 days) without penalty"
-    ],
-    provider: [
-      "Limit post-termination data retention obligations to 30 days to reduce storage costs",
-      "Define 'machine-readable format' on your terms — don't accept open-ended format obligations",
-      "Resist termination for convenience clauses — or require full remaining contract value as termination fee",
-      "Clarify that deletion certification is provided within a reasonable time, not immediately on request"
-    ],
-    fallback: "Upon termination or expiration of this Agreement, Provider will make Customer Data available for export in CSV or JSON format for 60 days following the effective date of termination. After such period, Provider will delete Customer Data in accordance with its data retention policy and provide written certification of deletion upon request."
+  {
+    id: 'indep-dev', severity: 'orange', title: 'Independent Development \u2014 No Proof Requirement', section: '\u00a74(a)',
+    patterns: ['independently developed by Receiving Party without reference to the Confidential Information'],
+    problem: 'The carve-out for independently developed information contains no requirement to demonstrate independence through contemporaneous documentation. It is easy to claim retroactively.',
+    baseline: 'The independent development exception shall only apply if Receiving Party can demonstrate through contemporaneous written records, created prior to or independent of the disclosure, that such information was developed without any reference to or use of the Confidential Information.'
+  },
+  {
+    id: 'public-domain', severity: 'orange', title: '\u201cGenerally Available\u201d Exception Overly Broad', section: '\u00a74(b)',
+    patterns: ['has become generally available to the public without breach of this Agreement by Receiving Party'],
+    problem: 'The public domain exception doesn\u2019t require that YOU made the information public. If a third party leaks your CI, the exception could still be argued to apply.',
+    baseline: 'Information shall only be excluded if it became generally available through disclosure authorized by Disclosing Party \u2014 not from any unauthorized disclosure by Receiving Party, its Representatives, or any third party who obtained such information from Receiving Party.'
+  },
+  {
+    id: 'short-term', severity: 'orange', title: 'Short Agreement Term \u2014 1 Year', section: '\u00a719',
+    patterns: ['term of this Agreement shall be one \\(1\\) year'],
+    problem: 'A 1-year term is short for sensitive business information, IP disclosures, or M&A-related NDAs.',
+    baseline: 'The term of this Agreement shall be three (3) years from the Effective Date. Obligations with respect to trade secrets shall survive indefinitely; obligations with respect to all other Confidential Information shall survive for five (5) years following termination.'
+  },
+  {
+    id: 'mutual', severity: 'yellow', title: 'Mutual Structure May Not Reflect Disclosure Imbalance', section: '\u00a71',
+    patterns: ['may deliver to each other', 'Mutual Non-Disclosure'],
+    problem: 'This is a mutual NDA \u2014 both parties receive equal protections. If you are the primary disclosing party, this symmetry is not in your favor.',
+    baseline: 'For any period during which the Disclosing Party discloses materially more Confidential Information, the parties agree to negotiate in good faith additional protections commensurate with the imbalance, including extended term, enhanced security requirements, or additional use restrictions.'
+  },
+  {
+    id: 'broad-reps', severity: 'yellow', title: 'Representatives Broad \u2014 No Countersignature Required', section: '\u00a73',
+    patterns: ['entities directly or indirectly owned by the Receiving Party'],
+    problem: 'Representatives include employees of all subsidiaries and third-party advisors with no requirement to sign a separate agreement \u2014 they only need to be \u201cinformed.\u201d',
+    baseline: 'Prior to disclosing any Confidential Information to any Representative, Receiving Party shall ensure that each such Representative is bound by a written confidentiality agreement containing terms no less restrictive than those set forth herein.'
+  },
+  {
+    id: 'injunctive', severity: 'yellow', title: 'Injunctive Relief Not Pre-Agreed', section: '\u00a715',
+    patterns: ['shall be entitled to equitable relief by way of injunction'],
+    problem: 'The NDA permits injunctive relief but does not pre-acknowledge that damages would be inadequate. You would still need to argue for an injunction rather than having it presumptively available.',
+    baseline: 'Each party acknowledges that a breach would cause irreparable harm for which monetary damages would be an inadequate remedy, and that the non-breaching party shall be entitled to seek immediate injunctive relief without the requirement to post bond and without the necessity of proving actual damages.'
   }
-};
-
-let side = null;
-let clause = null;
-
-const clauses = Object.keys(data);
-const clauseContainer = document.getElementById("clauses");
-clauses.forEach(c => {
-  const btn = document.createElement("button");
-  btn.className = "clause-btn";
-  btn.textContent = c;
-  btn.onclick = () => setClause(c);
-  clauseContainer.appendChild(btn);
-});
-
-function setSide(s) {
-  side = s;
-  document.getElementById("btn-customer").className = "toggle-btn" + (s === "customer" ? " active-customer" : "");
-  document.getElementById("btn-provider").className = "toggle-btn" + (s === "provider" ? " active-provider" : "");
-  render();
-}
-
-function setClause(c) {
-  clause = c;
-  document.querySelectorAll(".clause-btn").forEach(b => {
-    b.className = "clause-btn" + (b.textContent === c ? " active" : "");
-  });
-  render();
-}
-
-function render() {
-  const resultEl = document.getElementById("result");
-  const inner = document.getElementById("result-inner");
-  resultEl.style.display = "block";
-  if (!side || !clause) {
-    inner.innerHTML = '<div class="placeholder">Select both a side and a clause above</div>';
-    return;
-  }
-  const d = data[clause];
-  const isCust = side === "customer";
-  const tips = isCust ? d.customer : d.provider;
-  const tipClass = isCust ? "customer-box" : "provider-box";
-  const tipLabel = isCust ? "Push for this as Customer" : "Protect this as Provider";
-
-  inner.innerHTML = `
-    <div class="default-box">
-      <div class="label">Common Paper v2.1 default</div>
-      <p>${d.default}</p>
-    </div>
-    <div class="tip-box ${tipClass}">
-      <div class="label">${tipLabel}</div>
-      <ul>${tips.map(t => `<li>${t}</li>`).join("")}</ul>
-    </div>
-    <div class="fallback-box">
-      <div class="label">Suggested fallback clause</div>
-      <div class="fallback-text" id="fallback-text">${d.fallback}</div>
-      <button class="copy-btn" id="copy-btn" onclick="copyFallback()">Copy clause</button>
-    </div>
-  `;
-}
-
-const redFlags = [
-  { pattern: /perpetual/i, level: "red", clause: "Perpetual license grant", desc: "A perpetual license to your data or content means the vendor retains rights forever, even after you terminate.", suggest: "Replace with: 'License granted solely during the Subscription Period and solely to provide the Cloud Service.'" },
-  { pattern: /irrevocable/i, level: "red", clause: "Irrevocable rights", desc: "Irrevocable rights cannot be taken back. If granted over your data or IP, this survives termination.", suggest: "Push to remove 'irrevocable' or limit it explicitly to the term of the agreement." },
-  { pattern: /sole\s+discretion/i, level: "red", clause: "Sole discretion", desc: "Gives the vendor unilateral power to make decisions (e.g. suspend service, change terms) without recourse.", suggest: "Replace with: 'reasonable discretion' or require written notice and a cure period." },
-  { pattern: /unlimited\s+licen[sc]/i, level: "red", clause: "Unlimited license", desc: "An unlimited license to your data is extremely broad — the vendor could use it for almost any purpose.", suggest: "Replace with a strictly scoped license: 'solely to provide the Cloud Service to Customer.'" },
-  { pattern: /as.is/i, level: "amber", clause: "As-is disclaimer", desc: "Vendor disclaims all warranties. This is common but leaves you with little recourse if the service underperforms.", suggest: "Push for a limited warranty that the service will materially conform to documentation." },
-  { pattern: /auto.renew|automatically\s+renew/i, level: "amber", clause: "Auto-renewal", desc: "Contract renews automatically. Easy to miss if notice windows are short (often just 30 days).", suggest: "Push for 90-day notice window and a cap on fee increases at renewal (e.g. no more than 5%)." },
-  { pattern: /fees?\s+(are\s+)?non.refundable|no\s+refund/i, level: "amber", clause: "Non-refundable fees", desc: "You cannot recover fees even if you terminate early or the vendor breaches.", suggest: "Push for pro-rata refund rights on termination for cause or provider breach." },
-  { pattern: /waive[sr]?\s+(all\s+)?consequential|no\s+consequential/i, level: "amber", clause: "Consequential damages waiver", desc: "You cannot recover lost profits or indirect losses even if the vendor causes serious harm.", suggest: "Carve out data breaches, confidentiality breaches, and gross negligence from this waiver." },
-  { pattern: /train(ing)?\s+(ai|model|machine\s+learning)|use\s+(your\s+)?data\s+to\s+improv/i, level: "red", clause: "AI training on your data", desc: "Vendor may use your data to train AI models. This is a significant IP and confidentiality risk.", suggest: "Add: 'Provider will not use Customer Data to train machine learning or AI models without prior written consent.'" },
-  { pattern: /governi?ng\s+law.{0,30}(delaware|california|new\s+york)/i, level: "amber", clause: "Governing law & jurisdiction", desc: "Dispute resolution may require litigation in a distant state, increasing your legal costs.", suggest: "Push for your own jurisdiction or neutral arbitration (e.g. AAA arbitration in a mutually agreed location)." },
-  { pattern: /30\s+days?.{0,20}(data|export|return)/i, level: "amber", clause: "Short data return window", desc: "Only 30 days to export your data after termination — this can be very tight for large datasets.", suggest: "Push for 60–90 days and require export in machine-readable format (CSV, JSON)." },
-  { pattern: /indemnif.{0,40}customer|customer\s+shall\s+indemnif/i, level: "red", clause: "Broad customer indemnification", desc: "You are required to indemnify the vendor against a wide range of claims. Check scope carefully.", suggest: "Limit indemnification to claims arising from Customer's breach of the agreement or misuse of the service." },
-  { pattern: /modify.{0,30}terms|amend.{0,30}notice|change.{0,30}terms/i, level: "red", clause: "Unilateral right to modify terms", desc: "Vendor can change contract terms, sometimes with minimal notice. Your rights could be reduced mid-term.", suggest: "Push for: 'Material changes to these terms require mutual written agreement or 90 days advance notice.'" },
 ];
 
-function scanContract() {
-  const text = document.getElementById("contract-input").value.trim();
-  const out = document.getElementById("flags-output");
-  if (!text) { out.innerHTML = ""; return; }
-  const found = redFlags.filter(f => f.pattern.test(text));
-  if (!found.length) {
-    out.innerHTML = `<div class="flag-item flag-green"><div class="flag-top"><div class="flag-dot dot-green"></div><span class="flag-clause" style="color:#3B6D11">No obvious red flags detected</span></div><div class="flag-desc" style="color:#3B6D11">This scan checks for common problematic patterns. It does not replace legal review — clauses can be risky in context even without flagged language.</div></div><div class="disclaimer">This is a keyword-based scan, not AI analysis. It flags known risk patterns but cannot interpret meaning, context, or how clauses interact. Always have a qualified attorney review contracts before signing.</div>`;
-    return;
-  }
-  const colors = { red: "flag-red", amber: "flag-amber" };
-  const dots = { red: "dot-red", amber: "dot-amber" };
-  out.innerHTML = found.map(f => `
-    <div class="flag-item ${colors[f.level]}">
-      <div class="flag-top"><div class="flag-dot ${dots[f.level]}"></div><span class="flag-clause">${f.clause}</span></div>
-      <div class="flag-desc">${f.desc}</div>
-      <div class="flag-suggest">${f.suggest}</div>
-    </div>
-  `).join("") + `<div class="disclaimer">This is a keyword-based scan, not AI analysis. It flags known risk patterns but cannot interpret meaning, context, or how clauses interact. Always have a qualified attorney review contracts before signing.</div>`;
+var foundFlags = [];
+var activeFilter = 'all';
+var activeId = null;
+
+function esc(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-function copyFallback() {
-  const text = document.getElementById("fallback-text").textContent;
-  navigator.clipboard.writeText(text).then(() => {
-    const btn = document.getElementById("copy-btn");
-    btn.textContent = "Copied!";
-    btn.className = "copy-btn copied";
-    setTimeout(() => { btn.textContent = "Copy clause"; btn.className = "copy-btn"; }, 2000);
-  });
+function analyze() {
+  var raw = document.getElementById('nda-input').value.trim();
+  if (!raw) { alert('Please paste an NDA first.'); return; }
+
+  foundFlags = [];
+  var ranges = [];
+
+  for (var fi = 0; fi < FLAGS.length; fi++) {
+    var flag = FLAGS[fi];
+    for (var pi = 0; pi < flag.patterns.length; pi++) {
+      var re = new RegExp(flag.patterns[pi], 'gi');
+      var m;
+      while ((m = re.exec(raw)) !== null) {
+        var s = m.index, e = m.index + m[0].length;
+        var overlaps = false;
+        for (var ri = 0; ri < ranges.length; ri++) {
+          if (s < ranges[ri].end && e > ranges[ri].start) { overlaps = true; break; }
+        }
+        if (!overlaps) {
+          ranges.push({ start: s, end: e, id: flag.id, sev: flag.severity });
+          var already = false;
+          for (var ffi = 0; ffi < foundFlags.length; ffi++) {
+            if (foundFlags[ffi].id === flag.id) { already = true; break; }
+          }
+          if (!already) foundFlags.push(flag);
+        }
+      }
+    }
+  }
+
+  ranges.sort(function(a,b){ return a.start - b.start; });
+
+  var html = '';
+  var cursor = 0;
+  for (var i = 0; i < ranges.length; i++) {
+    var r = ranges[i];
+    if (cursor < r.start) html += esc(raw.slice(cursor, r.start));
+    var badge = r.sev === 'yellow' ? '?' : '!';
+    html += '<span class="flag ' + r.sev + '" data-id="' + r.id + '">' +
+            esc(raw.slice(r.start, r.end)) +
+            '<span class="fbadge">' + badge + '</span></span>';
+    cursor = r.end;
+  }
+  if (cursor < raw.length) html += esc(raw.slice(cursor));
+
+  document.getElementById('nda-rendered').innerHTML = html;
+
+  // Wire clicks on highlights
+  var highlights = document.querySelectorAll('.flag');
+  for (var hi = 0; hi < highlights.length; hi++) {
+    (function(el) {
+      el.addEventListener('click', function() { selectFlag(this.getAttribute('data-id')); });
+    })(highlights[hi]);
+  }
+
+  var nr = 0, no = 0, ny = 0;
+  for (var fj = 0; fj < foundFlags.length; fj++) {
+    if (foundFlags[fj].severity === 'red') nr++;
+    else if (foundFlags[fj].severity === 'orange') no++;
+    else ny++;
+  }
+  document.getElementById('cnt-r').textContent = nr;
+  document.getElementById('cnt-o').textContent = no;
+  document.getElementById('cnt-y').textContent = ny;
+  document.getElementById('stats-bar').style.display = 'flex';
+  document.getElementById('res-sub').textContent =
+    foundFlags.length + ' issue' + (foundFlags.length !== 1 ? 's' : '') + ' found \u00b7 Disclosing Party \u00b7 Scope of Protection';
+
+  document.getElementById('upload-view').style.display = 'none';
+  document.getElementById('results-view').style.display = 'block';
+  buildPanel();
+  openPanel();
 }
+
+function selectFlag(id) {
+  if (activeId) {
+    var prevHighlights = document.querySelectorAll('.flag[data-id="' + activeId + '"]');
+    for (var i = 0; i < prevHighlights.length; i++) prevHighlights[i].classList.remove('active');
+    var prevItem = document.getElementById('pfi-' + activeId);
+    if (prevItem) prevItem.classList.remove('active');
+  }
+  activeId = id;
+  var first = null;
+  var cur = document.querySelectorAll('.flag[data-id="' + id + '"]');
+  for (var j = 0; j < cur.length; j++) {
+    cur[j].classList.add('active');
+    if (!first) first = cur[j];
+  }
+  if (first) first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  var item = document.getElementById('pfi-' + id);
+  if (item) {
+    item.classList.add('active');
+    item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+}
+
+function buildPanel() {
+  var list = document.getElementById('plist');
+  list.innerHTML = '';
+  var order = { red: 0, orange: 1, yellow: 2 };
+  var toShow = [];
+  for (var i = 0; i < foundFlags.length; i++) {
+    if (activeFilter === 'all' || foundFlags[i].severity === activeFilter) toShow.push(foundFlags[i]);
+  }
+  toShow.sort(function(a,b){ return order[a.severity] - order[b.severity]; });
+
+  if (toShow.length === 0) {
+    list.innerHTML = '<div class="empty">No issues at this severity level.</div>';
+    return;
+  }
+  for (var j = 0; j < toShow.length; j++) {
+    var flag = toShow[j];
+    var div = document.createElement('div');
+    div.className = 'pfi ' + flag.severity;
+    div.id = 'pfi-' + flag.id;
+    if (activeId === flag.id) div.classList.add('active');
+    div.innerHTML =
+      '<div class="pfi-top">' +
+        '<div class="sdot"></div>' +
+        '<div class="pfi-title">' + flag.title + '</div>' +
+        '<div class="pfi-sec">' + flag.section + '</div>' +
+      '</div>' +
+      '<div class="pfi-prob">' + flag.problem + '</div>' +
+      '<div class="baseline">' +
+        '<div class="bl-lbl">&#10022; Baseline Clause</div>' +
+        '<div class="bl-txt">' + flag.baseline + '</div>' +
+      '</div>';
+    (function(fid) {
+      div.addEventListener('click', function() { selectFlag(fid); });
+    })(flag.id);
+    list.appendChild(div);
+  }
+}
+
+function openPanel() {
+  document.getElementById('panel').classList.add('open');
+  document.getElementById('main').classList.add('shifted');
+}
+function closePanel() {
+  document.getElementById('panel').classList.remove('open');
+  document.getElementById('main').classList.remove('shifted');
+}
+function reset() {
+  document.getElementById('upload-view').style.display = 'flex';
+  document.getElementById('results-view').style.display = 'none';
+  document.getElementById('stats-bar').style.display = 'none';
+  document.getElementById('nda-input').value = '';
+  closePanel();
+  foundFlags = []; activeId = null; activeFilter = 'all';
+  var fbs = document.querySelectorAll('.fb');
+  for (var i = 0; i < fbs.length; i++) fbs[i].classList.remove('on');
+  document.querySelector('.fb[data-f="all"]').classList.add('on');
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  document.getElementById('analyze-btn').addEventListener('click', analyze);
+  document.getElementById('reset-btn').addEventListener('click', reset);
+  document.getElementById('panel-close').addEventListener('click', closePanel);
+  var fbs = document.querySelectorAll('.fb');
+  for (var i = 0; i < fbs.length; i++) {
+    (function(btn) {
+      btn.addEventListener('click', function() {
+        activeFilter = btn.getAttribute('data-f');
+        var all = document.querySelectorAll('.fb');
+        for (var j = 0; j < all.length; j++) all[j].classList.remove('on');
+        btn.classList.add('on');
+        buildPanel();
+      });
+    })(fbs[i]);
+  }
+});
 </script>
 </body>
 </html>
